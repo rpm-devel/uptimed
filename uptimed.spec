@@ -1,19 +1,21 @@
 
 Summary:	A daemon to record and keep track of system up times
 Name:		uptimed
-Version:	0.4.0
-Release:	6%{?dist}
+Version:	0.4.7
+Release:	1%{?dist}
 License:	GPLv2
-Group:		System Environment/Daemons
 URL:		https://github.com/rpodgorny/uptimed/
-Source0:	https://github.com/rpodgorny/%{name}/archive/v%{version}.tar.gz
+Source0:	https://github.com/rpodgorny/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
 # https://github.com/rpodgorny/uptimed/pull/6
 Patch0:		uptimed-0001-systemd-unit-run-as-daemon-user-not-root.patch
-BuildRequires:	systemd-units
+%if 0%{?rhel} == 7
+BuildRequires:	systemd
+%else
+BuildRequires:	systemd-rpm-macros
+%endif
 BuildRequires:	autoconf, automake, libtool
-Requires(post): systemd-units
-Requires(preun): systemd-units
-Requires(postun): systemd-units
+BuildRequires:	gcc
+%{?systemd_requires}
 
 %description
 Uptimed is an up time record daemon keeping track of the highest
@@ -26,8 +28,8 @@ records on your Web page
 
 %package devel
 Summary:	Development header and library for uptimed
-Group:		Development/Libraries
 Requires:	%{name}%{?_isa} = %{version}-%{release}
+Obsoletes:	uptimed-devel < %{version}-%{release}
 
 %description devel
 Development header and library for uptimed.
@@ -56,24 +58,21 @@ install -m 644 sample-cgi/uprecords.* %{buildroot}%{_pkgdocdir}/sample-cgi
 mv %{buildroot}/etc/uptimed.conf-dist %{buildroot}/etc/uptimed.conf
 mkdir -p %{buildroot}%{_localstatedir}/spool/uptimed
 
-%post
-/sbin/ldconfig
-%systemd_post %{name}.service
-systemctl enable %{name}.service
+%ldconfig_scriptlets
 
-%post devel -p /sbin/ldconfig
+%post
+%systemd_post %{name}.service
+
+%ldconfig_scriptlets devel
 
 %postun
-/sbin/ldconfig
 %systemd_postun_with_restart %{name}.service
-
-%postun devel -p /sbin/ldconfig
 
 %preun
 %systemd_preun %{name}.service
 
 %files
-%defattr(-,root,root,-)
+
 %doc AUTHORS CREDITS ChangeLog INSTALL.cgi INSTALL.upgrade README.md README.unsupported TODO sample-cgi/
 %license COPYING
 %config(noreplace) %{_sysconfdir}/uptimed.conf
@@ -85,11 +84,17 @@ systemctl enable %{name}.service
 %dir %attr(-,daemon,daemon) %{_localstatedir}/spool/uptimed
 
 %files devel
-%defattr(-,root,root,-)
+
 %{_libdir}/libuptimed.so
 %{_includedir}/uptimed.h
 
 %changelog
+* Fri Apr 24 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 0.4.7-1
+- Update to 0.4.7
+- Modernize spec for EL10 (remove Group, defattr, use ldconfig_scriptlets)
+- Use systemd-rpm-macros
+- Add gcc BuildRequires
+
 * Sat Jul 15 2017 Tomasz Torcz <ttorcz@fedoraproject.org> - 0.4.0-6
 - establish EPEL7 branch based on fedora rawhide (f27) (rhbz#1470857)
 
